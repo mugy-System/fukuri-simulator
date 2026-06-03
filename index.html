@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>複利計算ツール</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:linear-gradient(160deg,#daeeff 0%,#b8d9f5 50%,#9ac4e8 100%);min-height:100vh;color:#333;padding-bottom:72px;}
+
+/* ── Tab ── */
+.tab-bar{display:flex;background:#fff;border-bottom:1px solid #ddd;position:sticky;top:0;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.tab-btn{flex:1;padding:14px;text-align:center;cursor:pointer;font-size:15px;font-weight:bold;color:#aaa;border:none;background:none;border-bottom:3px solid transparent;transition:all .2s;}
+.tab-btn.active{color:#1976D2;border-bottom-color:#1976D2;}
+
+/* ── Pages ── */
+.page{display:none;}.page.show{display:block;}
+.container{max-width:1280px;margin:0 auto;padding:16px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start;}
+@media(max-width:620px){.two-col{grid-template-columns:1fr;}}
+
+/* ── Card ── */
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.08);}
+.card-title{font-size:15px;font-weight:bold;margin-bottom:14px;color:#222;}
+
+/* ── Input sections ── */
+.sec-title{font-size:15px;font-weight:bold;margin:0 0 12px;color:#222;}
+.input-section{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid #f0f0f0;}
+.input-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+
+/* Material outlined field */
+.mfield{position:relative;border:1px solid #bbb;border-radius:6px;background:#fff;padding:18px 12px 8px;margin-bottom:10px;transition:border-color .2s;}
+.mfield:focus-within{border-color:#1976D2;}
+.mfield>label{position:absolute;top:5px;left:12px;font-size:11px;color:#888;pointer-events:none;white-space:nowrap;}
+.mfield>input{width:100%;border:none;outline:none;font-size:15px;background:transparent;color:#222;}
+.mfield .f-row{display:flex;gap:8px;align-items:center;}
+.mfield .f-row input{flex:1;min-width:0;border:none;outline:none;font-size:15px;background:transparent;color:#222;}
+.mfield .f-row select{flex-shrink:0;border:none;outline:none;font-size:13px;background:transparent;color:#555;cursor:pointer;}
+.mfield .ym-row{display:flex;gap:6px;align-items:center;}
+.mfield .ym-row input{width:64px;flex:none;border:none;outline:none;font-size:15px;background:transparent;color:#222;}
+.mfield .ym-row span{font-size:13px;color:#555;white-space:nowrap;}
+
+/* ── Result cards ── */
+.result-stack{display:flex;flex-direction:column;gap:10px;}
+.rcard{border-radius:8px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.08);}
+.rcard-head{background:#4fc3f7;color:#fff;padding:9px 14px;font-size:13px;font-weight:bold;text-align:center;}
+.rcard-val{padding:11px 14px;font-size:19px;font-weight:bold;text-align:center;background:#fff;color:#222;}
+.rcard.orange .rcard-head{background:#ff8c00;}
+.rcard.orange .rcard-val{font-size:20px;}
+
+/* ── Action bar（body直下、page外） ── */
+.action-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:8px 12px;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;box-shadow:0 -2px 8px rgba(0,0,0,.12);z-index:200;}
+.btn{padding:11px 18px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:bold;transition:opacity .2s;white-space:nowrap;min-height:44px;}
+.btn:hover{opacity:.85;}
+.btn-gray{background:#9e9e9e;color:#fff;}
+.btn-purple{background:#7c4dff;color:#fff;}
+.btn-green{background:#43a047;color:#fff;}
+.btn-blue{background:#1e88e5;color:#fff;}
+.btn-red{background:#e53935;color:#fff;}
+.btn-orange{background:#f57c00;color:#fff;}
+@media(max-width:480px){
+  .btn{padding:9px 12px;font-size:13px;}
+  body{padding-bottom:90px;}
+}
+
+/* ── プラン追加ダイアログ ── */
+.plan-dialog-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;align-items:center;justify-content:center;}
+.plan-dialog-overlay.show{display:flex;}
+.plan-dialog{background:#fff;border-radius:14px;padding:24px;width:min(420px,92vw);box-shadow:0 8px 32px rgba(0,0,0,.2);}
+.plan-dialog h3{font-size:16px;margin-bottom:16px;color:#1976D2;}
+.plan-dialog label{font-size:12px;color:#888;display:block;margin-bottom:4px;}
+.plan-dialog input[type=text],.plan-dialog textarea{
+  width:100%;border:1px solid #ccc;border-radius:8px;
+  padding:10px 12px;font-size:14px;margin-bottom:14px;
+  font-family:inherit;resize:vertical;
+}
+.plan-dialog textarea{min-height:80px;}
+.plan-dialog .dialog-btns{display:flex;gap:10px;justify-content:flex-end;}
+
+/* ── Toast（alert代替） ── */
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 22px;border-radius:24px;font-size:14px;z-index:9999;opacity:0;pointer-events:none;transition:opacity .3s;white-space:nowrap;}
+#toast.show{opacity:1;}
+
+/* ── Chart / Table ── */
+.section-hidden{display:none;}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;}
+thead th{background:#ffa726;color:#fff;padding:8px 5px;text-align:center;white-space:nowrap;}
+tbody tr:nth-child(odd){background:#fafafa;}
+tbody td{padding:6px 5px;text-align:right;border-bottom:1px solid #f0f0f0;white-space:nowrap;}
+tbody td:first-child,tbody td:nth-child(2){text-align:center;}
+
+/* ── SubTab（セグメント型） ── */
+.sub-tab-bar{display:flex;background:#eef2f7;border-radius:10px;padding:4px;margin-bottom:20px;gap:4px;}
+.sub-tab-btn{flex:1;padding:11px 10px;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:bold;color:#888;background:transparent;transition:all .2s;}
+.sub-tab-btn.active{background:#fff;color:#1976D2;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+.sub-page{display:none;}.sub-page.show{display:block;}
+
+/* ── 逆算レイアウト（縦積み） ── */
+.rev-card{max-width:760px;margin:0 auto;}
+.rev-result-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;}
+@media(max-width:500px){.rev-result-row{grid-template-columns:1fr;}}
+.rev-rcard{border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+.rev-rcard-head{padding:12px 16px;font-size:14px;font-weight:bold;text-align:center;color:#fff;}
+.rev-rcard-val{padding:20px 16px;font-size:32px;font-weight:bold;text-align:center;background:#fff;color:#222;}
+.rev-rcard-sub{padding:4px 16px 14px;font-size:12px;text-align:center;background:#fff;color:#888;}
+
+/* ── Modal（前の画面が上部に見えるシート型） ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.45);
+  z-index:500;overflow:hidden;
+}
+.modal-overlay.show{display:block;}
+.modal-box{
+  background:#f5f5f5;
+  height:calc(100vh - 52px);
+  margin:52px 14px 0;
+  padding:0;
+  border-radius:14px 14px 0 0;
+  box-shadow:0 -4px 20px rgba(0,0,0,.2);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.modal-top{
+  display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;
+  flex-shrink:0;
+  padding:12px 14px;
+  background:#f5f5f5;
+  border-bottom:1px solid #ddd;
+  border-radius:14px 14px 0 0;
+}
+#planList,#revPlanList{overflow-y:auto;flex:1;padding:14px;}
+
+/* ── 印刷エリア（同タブ印刷用） ── */
+#print-area{display:none;}
+/* 日付トグル */
+.date-toggle{display:flex;align-items:center;gap:5px;font-size:13px;color:#555;cursor:pointer;white-space:nowrap;padding:0 4px;}
+.date-toggle input{width:15px;height:15px;cursor:pointer;accent-color:#1976D2;}
+
+@media print{
+  body>*:not(#print-area){display:none!important;}
+  #print-area{display:block!important;font-family:'Hiragino Sans','Meiryo',sans-serif;color:#333;}
+
+  .print-plan{page-break-after:always;padding:2mm 0;}
+  .print-plan:last-child{page-break-after:avoid;}
+
+  /* ヘッダー */
+  .print-header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:3px solid #1976D2;padding-bottom:8px;margin-bottom:16px;
+  }
+  .print-header-app{font-size:14px;font-weight:bold;color:#1976D2;}
+  .print-header-date{font-size:11px;color:#888;}
+
+  /* タイトル */
+  .print-title{
+    font-size:26px;font-weight:bold;color:#1976D2;
+    margin:0 0 16px;padding-bottom:8px;
+  }
+
+  /* メモ */
+  .print-memo{
+    background:#fffde7;border-left:4px solid #f9a825;
+    padding:8px 12px;font-size:12px;margin-bottom:14px;white-space:pre-wrap;border-radius:0 6px 6px 0;
+  }
+
+  /* パラメータグリッド */
+  .print-params{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px;}
+  .print-params span{background:#f0f7ff;border-radius:6px;padding:8px 10px;font-size:12px;text-align:center;}
+  .print-params span b{display:block;color:#1976D2;font-size:10px;font-weight:bold;margin-bottom:4px;}
+
+  /* バッジ */
+  .print-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .print-badge{background:#1976D2;color:#fff;padding:4px 14px;border-radius:20px;font-size:11px;font-weight:bold;}
+
+  /* チャート */
+  .print-chart{width:100%;max-height:230px;margin:0 0 14px;display:block;}
+
+  /* サマリーカード */
+  .print-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 16px;}
+  .print-summary div{
+    background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;
+    padding:12px 8px;font-size:15px;font-weight:bold;text-align:center;
+  }
+  .print-summary div b{display:block;color:#1976D2;font-size:10px;font-weight:bold;margin-bottom:6px;}
+  .print-summary div.hilite{background:#fff8e1;border-color:#ffcc02;}
+  .print-summary div.hilite b{color:#f57f17;}
+
+  /* テーブル */
+  .print-section-title{
+    font-size:12px;font-weight:bold;color:#fff;
+    background:#1976D2;padding:6px 12px;border-radius:6px 6px 0 0;
+    margin-top:4px;
+  }
+  .print-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .print-table thead th{background:#42a5f5;color:#fff;padding:6px 4px;text-align:center;white-space:nowrap;}
+  .print-table tbody tr:nth-child(odd){background:#f5f9ff;}
+  .print-table tbody tr:nth-child(even){background:#fff;}
+  .print-table tbody td{padding:5px 4px;text-align:right;border-bottom:1px solid #e0e0e0;white-space:nowrap;}
+  .print-table tbody td:first-child,.print-table tbody td:nth-child(2){text-align:center;}
+
+  /* 逆算プラン印刷（縦1列・4プラン/ページ） */
+  .print-rev-grid{display:grid;grid-template-columns:1fr;gap:5.5mm;margin-top:4mm;break-before:avoid;}
+  .print-rev-card{border:1.5px solid #90caf9;border-radius:8px;padding:9px 14px;break-inside:avoid;page-break-inside:avoid;}
+  .print-rev-title{font-size:15px;font-weight:bold;color:#1976D2;border-bottom:1.5px solid #90caf9;padding-bottom:5px;margin-bottom:6px;}
+  .print-rev-type{font-size:10px;background:#e3f2fd;color:#1976D2;border-radius:10px;padding:2px 9px;display:inline-block;margin-bottom:6px;}
+  .print-rev-params{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:7px;}
+  .print-rev-params span{background:#f0f7ff;border-radius:5px;padding:5px 7px;font-size:10px;}
+  .print-rev-params span b{color:#1976D2;font-size:9px;display:block;font-weight:bold;margin-bottom:2px;}
+  .print-rev-result{background:#fff8e1;border:1.5px solid #ffcc02;border-radius:6px;padding:7px 12px;text-align:center;}
+  .print-rev-result b{display:block;font-size:11px;color:#f57f17;margin-bottom:3px;}
+  .print-rev-result-val{font-size:22px;font-weight:bold;color:#222;}
+  .print-rev-memo{font-size:10px;background:#fffde7;border-left:3px solid #f9a825;padding:5px 9px;margin-top:6px;white-space:pre-wrap;border-radius:0 4px 4px 0;}
+  @page{size:A4 portrait;margin:0;}
+  #print-area{padding:12mm 10mm;}
+}
+.pcard{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:18px;margin-bottom:14px;}
+.pcard-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.pcard-title-input{flex:1;border:1px solid #ccc;border-radius:8px;padding:8px 12px;font-size:15px;}
+.pcard-actions{display:flex;gap:8px;}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;}
+.icon-btn.iprint{background:#7c4dff;color:#fff;}
+.icon-btn.ipdf{background:#f57c00;color:#fff;}
+.icon-btn.imemo{background:#00acc1;color:#fff;}
+.icon-btn.idel{background:#e53935;color:#fff;}
+.icon-btn.ireset{background:#ff8c00;color:#fff;}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.badge{background:#4fc3f7;color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;}
+.pcard-info{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#666;margin-bottom:10px;}
+.pcard-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;padding:10px;background:#fffde7;border-radius:8px;font-size:12px;text-align:center;}
+.pcard-summary div b{display:block;margin-bottom:3px;font-size:11px;}
+.memo-area{width:100%;border:1px solid #ccc;border-radius:8px;padding:10px;font-size:13px;min-height:70px;margin-bottom:10px;resize:vertical;}
+/* 年次テーブルトグル */
+.table-toggle-btn{width:100%;margin-top:10px;padding:8px;border:1px solid #ccc;border-radius:6px;background:#f9f9f9;cursor:pointer;font-size:13px;color:#555;text-align:center;}
+.table-toggle-btn:hover{background:#eee;}
+.plan-table-wrap{overflow-x:auto;margin-top:8px;}
+/* 逆算プランカード（画面） */
+.rpcard{background:#fff;border:1px solid #b3d9ff;border-radius:12px;padding:16px;margin-bottom:12px;}
+.rpcard-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.rpcard-title-input{flex:1;border:1px solid #ccc;border-radius:8px;padding:8px 12px;font-size:15px;}
+.rpcard-type{font-size:11px;background:#e3f2fd;color:#1976D2;border-radius:20px;padding:3px 10px;white-space:nowrap;flex-shrink:0;}
+.rpcard-actions{display:flex;gap:8px;}
+.rpcard-params{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px;}
+.rpcard-param-item{background:#f0f7ff;border-radius:8px;padding:8px 10px;}
+.rpcard-param-label{font-size:11px;color:#1976D2;font-weight:bold;margin-bottom:3px;}
+.rpcard-param-value{font-size:15px;font-weight:bold;color:#222;}
+.rpcard-result{background:#fff8e1;border:1px solid #ffcc02;border-radius:8px;padding:12px;text-align:center;margin-bottom:8px;}
+.rpcard-result b{display:block;font-size:12px;color:#f57f17;margin-bottom:4px;}
+.rpcard-result-val{font-size:24px;font-weight:bold;color:#222;}
+</style>
+</head>
+<body>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+<!-- 印刷エリア（同タブ印刷） -->
+<div id="print-area"></div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('calc')">複利計算</button>
+  <button class="tab-btn" onclick="switchTab('reverse')">逆算</button>
+</div>
+
+<!-- ════════ 複利計算 ════════ -->
+<div id="page-calc" class="page show">
+<div class="container">
+  <div class="two-col">
+
+    <!-- 入力パネル -->
+    <div class="card">
+      <div class="input-section">
+        <div class="sec-title">1. 積立期間</div>
+        <div class="mfield">
+          <label>積立期間</label>
+          <div class="ym-row">
+            <input id="accumYears"  value="0" inputmode="numeric" data-fmt="int"
+              onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this)">
+            <span>年</span>
+            <input id="accumMonths" value="0" inputmode="numeric" data-fmt="int"
+              onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this)">
+            <span>ヶ月</span>
+          </div>
+        </div>
+        <div class="mfield">
+          <label>初期投資額</label>
+          <div class="f-row">
+            <input id="initialInv" value="0" inputmode="decimal"
+              data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this)">
+            <select id="initialUnit">
+              <option value="1">円</option>
+              <option value="10000" selected>万円</option>
+            </select>
+          </div>
+        </div>
+        <div class="mfield">
+          <label>毎月の積立額</label>
+          <div class="f-row">
+            <input id="monthly" value="0" inputmode="decimal"
+              data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this)">
+            <select id="monthlyUnit">
+              <option value="1">円</option>
+              <option value="10000" selected>万円</option>
+            </select>
+          </div>
+        </div>
+        <div class="mfield">
+          <label>想定利回り（%）※マイナス可</label>
+          <input id="accumRate" value="0" inputmode="decimal"
+            onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this)">
+        </div>
+      </div>
+
+      <div class="input-section">
+        <div class="sec-title">2. 運用期間</div>
+        <div class="mfield">
+          <label>運用期間</label>
+          <div class="ym-row">
+            <input id="mgmtYears"  value="0" inputmode="numeric"
+              onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this)">
+            <span>年</span>
+            <input id="mgmtMonths" value="0" inputmode="numeric"
+              onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this)">
+            <span>ヶ月</span>
+          </div>
+        </div>
+        <div class="mfield">
+          <label>想定利回り（%）※マイナス可</label>
+          <input id="mgmtRate" value="0" inputmode="decimal"
+            onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this)">
+        </div>
+      </div>
+
+      <div class="input-section">
+        <div class="sec-title">3. 引落期間</div>
+        <div class="mfield">
+          <label>引落期間（年）</label>
+          <input id="wdYears" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this)">
+        </div>
+        <div class="mfield">
+          <label>想定利回り（%）※マイナス可</label>
+          <input id="wdRate" value="0" inputmode="decimal"
+            onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this)">
+        </div>
+        <div class="mfield">
+          <label>一括引落額</label>
+          <div class="f-row">
+            <input id="lumpSum" value="0" inputmode="decimal"
+              data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this)">
+            <select id="lumpSumUnit">
+              <option value="1">円</option>
+              <option value="10000" selected>万円</option>
+            </select>
+          </div>
+        </div>
+        <div class="mfield">
+          <label>引落方法 / 引落額（年）</label>
+          <div class="f-row">
+            <select id="wdMethod" style="font-size:14px;flex-shrink:0;">
+              <option value="fixed">定額</option>
+              <option value="rate">定率(%)</option>
+            </select>
+            <input id="wdAmount" value="0" inputmode="decimal"
+              data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this)">
+            <select id="wdUnit">
+              <option value="1">円</option>
+              <option value="10000" selected>万円</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 結果パネル -->
+    <div class="result-stack">
+      <div class="rcard"><div class="rcard-head">1. 合計投資金額</div><div class="rcard-val" id="r1">0 円</div></div>
+      <div class="rcard"><div class="rcard-head">2. 積立期間終了時の資産残高</div><div class="rcard-val" id="r2">0 円</div></div>
+      <div class="rcard"><div class="rcard-head">3. 運用期間終了時の資産残高</div><div class="rcard-val" id="r3">0 円</div></div>
+      <div class="rcard"><div class="rcard-head">4. うち、運用収益額</div><div class="rcard-val" id="r4">0 円</div></div>
+      <div class="rcard"><div class="rcard-head">5. 引落金総額</div><div class="rcard-val" id="r5">0 円</div></div>
+      <div class="rcard"><div class="rcard-head">6. 全期間終了後の残高</div><div class="rcard-val" id="r6">0 円</div></div>
+      <div class="rcard orange"><div class="rcard-head">総運用期間（当年〜引落終了年）</div><div class="rcard-val" id="r7">2026〜</div></div>
+    </div>
+  </div>
+
+  <div class="card section-hidden" id="chartCard" style="margin-bottom:16px;">
+    <div class="card-title">資産推移チャート</div>
+    <canvas id="mainChart" height="90"></canvas>
+  </div>
+
+  <div class="card section-hidden" id="tableCard">
+    <div class="card-title">年次データ</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead><tr>
+          <th>運用年</th><th>参考年</th><th>年間投資額</th><th>累計投資額</th>
+          <th>年間運用益</th><th>年間引落額</th><th>累計引落額</th>
+          <th>原資残高</th><th>運用益残高</th><th>資産残高</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div><!-- /page-calc -->
+
+
+<!-- ════════ 逆算 ════════ -->
+<div id="page-reverse" class="page">
+<div class="container">
+
+  <!-- セグメントタブ（カード外に配置して目立たせる） -->
+  <div style="max-width:500px;margin:0 auto 20px;">
+    <div class="sub-tab-bar">
+      <button class="sub-tab-btn active" onclick="switchSubTab('revRate')">📈 必要利回り</button>
+      <button class="sub-tab-btn" onclick="switchSubTab('revAmt')">💰 必要積立額</button>
+    </div>
+  </div>
+
+  <!-- 必要利回り -->
+  <div id="sub-revRate" class="sub-page show">
+    <div class="rev-card card">
+      <div class="card-title">条件を入力</div>
+      <div class="mfield">
+        <label>目標金額</label>
+        <div class="f-row">
+          <input id="rv1-target" value="0" inputmode="decimal"
+            data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this);calcRevRate()">
+          <select id="rv1-tunit" onchange="calcRevRate()">
+            <option value="1">円</option><option value="10000" selected>万円</option>
+          </select>
+        </div>
+      </div>
+      <div class="mfield">
+        <label>積立期間</label>
+        <div class="ym-row">
+          <input id="rv1-years" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevRate()">
+          <span>年</span>
+          <input id="rv1-months" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevRate()">
+          <span>ヶ月</span>
+        </div>
+      </div>
+      <div class="mfield">
+        <label>毎月の積立額</label>
+        <div class="f-row">
+          <input id="rv1-monthly" value="0" inputmode="decimal"
+            data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this);calcRevRate()">
+          <select id="rv1-munit" onchange="calcRevRate()">
+            <option value="1">円</option><option value="10000" selected>万円</option>
+          </select>
+        </div>
+      </div>
+      <div class="mfield">
+        <label>運用期間</label>
+        <div class="ym-row">
+          <input id="rv1-mgmt-y" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevRate()">
+          <span>年</span>
+          <input id="rv1-mgmt-m" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevRate()">
+          <span>ヶ月</span>
+        </div>
+      </div>
+      <!-- 結果カード（横並び2枚） -->
+      <div class="rev-result-row">
+        <div class="rev-rcard">
+          <div class="rev-rcard-head" style="background:#4fc3f7;">積立総額</div>
+          <div class="rev-rcard-val" id="rv1-total-disp">0 円</div>
+        </div>
+        <div class="rev-rcard">
+          <div class="rev-rcard-head" style="background:#ff8c00;">必要利回り</div>
+          <div class="rev-rcard-val" id="rv1-result">－</div>
+          <div class="rev-rcard-sub">年複利</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 必要積立額 -->
+  <div id="sub-revAmt" class="sub-page">
+    <div class="rev-card card">
+      <div class="card-title">条件を入力</div>
+      <div class="mfield">
+        <label>目標金額</label>
+        <div class="f-row">
+          <input id="rv2-target" value="0" inputmode="decimal"
+            data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this);calcRevAmt()">
+          <select id="rv2-tunit" onchange="calcRevAmt()">
+            <option value="1">円</option><option value="10000" selected>万円</option>
+          </select>
+        </div>
+      </div>
+      <div class="mfield">
+        <label>積立期間</label>
+        <div class="ym-row">
+          <input id="rv2-years" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevAmt()">
+          <span>年</span>
+          <input id="rv2-months" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevAmt()">
+          <span>ヶ月</span>
+        </div>
+      </div>
+      <div class="mfield">
+        <label>年利（%）</label>
+        <input id="rv2-rate" value="0" inputmode="decimal"
+          onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this);calcRevAmt()">
+      </div>
+      <div class="mfield">
+        <label>運用期間</label>
+        <div class="ym-row">
+          <input id="rv2-mgmt-y" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevAmt()">
+          <span>年</span>
+          <input id="rv2-mgmt-m" value="0" inputmode="numeric"
+            onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this);calcRevAmt()">
+          <span>ヶ月</span>
+        </div>
+      </div>
+      <!-- 結果カード -->
+      <div class="rev-result-row" style="grid-template-columns:1fr;">
+        <div class="rev-rcard">
+          <div class="rev-rcard-head" style="background:#ff8c00;">必要積立額（月）</div>
+          <div class="rev-rcard-val" id="rv2-result">－</div>
+          <div class="rev-rcard-sub">毎月この金額を積み立てると目標を達成できます</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /page-reverse -->
+
+
+<!-- ════════ アクションバー（body直下、全ページdivの外） ════════ -->
+<div class="action-bar" id="bar-calc">
+  <button class="btn btn-gray"   onclick="resetCalc()">リセット</button>
+  <button class="btn btn-purple" onclick="calculate()">計算する</button>
+  <button class="btn btn-green"  onclick="addPlan()">プラン追加</button>
+  <button class="btn btn-blue"   onclick="openPlans()">プラン一覧</button>
+</div>
+<div class="action-bar" id="bar-reverse" style="display:none;">
+  <button class="btn btn-gray"  onclick="resetReverse()">リセット</button>
+  <button class="btn btn-green" onclick="addPlanFromReverse()">プラン追加</button>
+  <button class="btn btn-blue"  onclick="openRevPlans()">プラン一覧</button>
+</div>
+
+
+<!-- ════════ プラン追加ダイアログ ════════ -->
+<div class="plan-dialog-overlay" id="addPlanDialog">
+  <div class="plan-dialog">
+    <h3>📌 プランを保存</h3>
+    <label>タイトル</label>
+    <input type="text" id="dialog-title" placeholder="プラン名を入力">
+    <label>コメント（任意）</label>
+    <textarea id="dialog-memo" placeholder="メモや備考を入力（省略可）"></textarea>
+    <div class="dialog-btns">
+      <button class="btn btn-gray" onclick="closeAddDialog()">キャンセル</button>
+      <button class="btn btn-green" onclick="confirmAddPlan()">追加する</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ プラン一覧モーダル ════════ -->
+<div class="modal-overlay" id="planModal">
+  <div class="modal-box">
+    <div class="modal-top">
+      <label class="date-toggle"><input type="checkbox" id="plan-date-chk" checked> 日付を印刷</label>
+      <button class="btn btn-purple" onclick="printAll()">一括印刷</button>
+      <button class="btn btn-orange" onclick="resetAllPlanTitles()">プラン名リセット</button>
+      <button class="btn btn-red"    onclick="deleteAll()">一括削除</button>
+      <button class="btn btn-gray"   onclick="closePlans()">閉じる</button>
+    </div>
+    <div id="planList"></div>
+  </div>
+</div>
+
+<!-- ════════ 逆算プラン一覧モーダル ════════ -->
+<div class="modal-overlay" id="revPlanModal">
+  <div class="modal-box">
+    <div class="modal-top">
+      <label class="date-toggle"><input type="checkbox" id="rev-list-date-chk" checked> 日付を印刷</label>
+      <button class="btn btn-purple" onclick="printRevPlans()">一括印刷</button>
+      <button class="btn btn-orange" onclick="resetAllRevPlanTitles()">プラン名リセット</button>
+      <button class="btn btn-red"    onclick="deleteAllRevPlans()">一括削除</button>
+      <button class="btn btn-gray"   onclick="closeRevPlans()">閉じる</button>
+    </div>
+    <div id="revPlanList"></div>
+  </div>
+</div>
+
+
+<script>
+'use strict';
+// ═══════════════════════════════════
+//  定数・状態
+// ═══════════════════════════════════
+const TODAY_YEAR = new Date().getFullYear();
+let lastResult   = null;
+let mainChartInst = null;
+let plans = [];
+
+// localStorage（エラー時は空で続行）
+try { plans = JSON.parse(localStorage.getItem('fukuri_plans') || '[]'); } catch(e) {}
+function savePlans() { try { localStorage.setItem('fukuri_plans', JSON.stringify(plans)); } catch(e) {} }
+
+let revPlans = [];
+try { revPlans = JSON.parse(localStorage.getItem('fukuri_revplans') || '[]'); } catch(e) {}
+function saveRevPlans() { try { localStorage.setItem('fukuri_revplans', JSON.stringify(revPlans)); } catch(e) {} }
+
+// ═══════════════════════════════════
+//  Toast（alert代替）
+// ═══════════════════════════════════
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════
+//  全角→半角変換
+// ═══════════════════════════════════
+function toHalf(s) {
+  return (s || '')
+    .replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+    .replace(/[．｡。]/g, '.').replace(/[－ー−]/g, '-').replace(/[＋]/g, '+');
+}
+
+// ═══════════════════════════════════
+//  入力フィルター
+// ═══════════════════════════════════
+function filterInt(el)  { el.value = toHalf(el.value).replace(/[^0-9]/g, ''); }
+function filterMoney(el) {
+  let v = toHalf(el.value).replace(/[^0-9.]/g, '');
+  const p = v.split('.'); if (p.length > 2) v = p[0] + '.' + p.slice(1).join('');
+  el.value = v;
+}
+function filterRate(el) {
+  let v = toHalf(el.value).replace(/[^0-9.\-]/g, '');
+  if (v.indexOf('-') > 0) { const n = v.startsWith('-'); v = v.replace(/-/g,''); if(n) v='-'+v; }
+  const p = v.split('.'); if (p.length > 2) v = p[0]+'.'+p.slice(1).join('');
+  el.value = v;
+}
+document.addEventListener('compositionend', e => {
+  const el = e.target; if (el.tagName !== 'INPUT') return;
+  if      (el.dataset.fmt === 'money')   filterMoney(el);
+  else if (el.inputMode  === 'decimal')  filterRate(el);
+  else if (el.inputMode  === 'numeric')  filterInt(el);
+  // inputmode未指定（テキスト入力）はフィルター不要
+}, true);
+
+// ═══════════════════════════════════
+//  フォーカス / ブラー
+// ═══════════════════════════════════
+function onFocus(el)    { const r = el.value.replace(/,/g,''); el.value = (r==='0'||r==='')?'':r; }
+function onBlurMoney(el){
+  const v = parseFloat(toHalf(el.value).replace(/,/g,'')) || 0;
+  el.value = (v === Math.floor(v)) ? v.toLocaleString('ja-JP') : parseFloat(v.toFixed(4)).toString();
+}
+function onBlurInt(el)  { el.value = String(parseInt(toHalf(el.value),10)||0); }
+function onBlurRate(el) { el.value = String(parseFloat(toHalf(el.value))||0); }
+
+// ═══════════════════════════════════
+//  値の読み取り
+// ═══════════════════════════════════
+function gv(id) {
+  const el = document.getElementById(id);
+  return el ? (parseFloat(toHalf(el.value).replace(/,/g,'')) || 0) : 0;
+}
+function gu(iid, uid) { return gv(iid) * (parseFloat((document.getElementById(uid)||{}).value)||1); }
+function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+// ═══════════════════════════════════
+//  Tab / SubTab
+// ═══════════════════════════════════
+function switchTab(t) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', (i===0&&t==='calc')||(i===1&&t==='reverse')));
+  document.getElementById('page-calc').classList.toggle('show', t==='calc');
+  document.getElementById('page-reverse').classList.toggle('show', t==='reverse');
+  document.getElementById('bar-calc').style.display    = (t==='calc')    ? '' : 'none';
+  document.getElementById('bar-reverse').style.display = (t==='reverse') ? '' : 'none';
+}
+function switchSubTab(s) {
+  document.querySelectorAll('.sub-tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', (i===0&&s==='revRate')||(i===1&&s==='revAmt')));
+  document.getElementById('sub-revRate').classList.toggle('show', s==='revRate');
+  document.getElementById('sub-revAmt').classList.toggle('show', s==='revAmt');
+}
+
+// ═══════════════════════════════════
+//  Calculation core
+// ═══════════════════════════════════
+function computePlan(p) {
+  const totalAccumM = p.accumYears * 12 + p.accumMonths;
+  const totalMgmtM  = p.mgmtYears  * 12 + p.mgmtMonths;
+  // 年複利を月換算: (1+r)^(1/12) - 1
+  const mr1 = Math.pow(1 + p.accumRate / 100, 1/12) - 1;
+  const mr2 = Math.pow(1 + p.mgmtRate  / 100, 1/12) - 1;
+  const mr3 = Math.pow(1 + p.wdRate    / 100, 1/12) - 1;
+
+  let balance = p.initialInv, cumInv = p.initialInv;
+  let prevCumInv = 0, prevIncome = 0, cumWd = 0, yearNum = 0;
+  const rows = [];
+
+  // Phase 1: 積立
+  for (let m = 1; m <= totalAccumM; m++) {
+    balance = balance * (1 + mr1) + p.monthly;
+    cumInv += p.monthly;
+    if ((m % 12 === 0) || (m === totalAccumM)) {
+      yearNum++;
+      const inc = balance - cumInv;
+      rows.push({ year:yearNum, refYear:TODAY_YEAR+yearNum-1,
+        annInv:Math.round(cumInv-prevCumInv), cumInv:Math.round(cumInv),
+        annIncome:Math.round(inc-prevIncome), annWd:0, cumWd:0,
+        principal:Math.round(cumInv), incomeBalance:Math.round(inc), total:Math.round(balance) });
+      prevCumInv = cumInv; prevIncome = inc;
+    }
+  }
+  const balAfterAccum = balance;
+
+  // Phase 2: 運用
+  for (let m = 1; m <= totalMgmtM; m++) {
+    balance = balance * (1 + mr2);
+    if ((m % 12 === 0) || (m === totalMgmtM)) {
+      yearNum++;
+      const inc = balance - cumInv;
+      rows.push({ year:yearNum, refYear:TODAY_YEAR+yearNum-1,
+        annInv:0, cumInv:Math.round(cumInv),
+        annIncome:Math.round(inc-prevIncome), annWd:0, cumWd:0,
+        principal:Math.round(cumInv), incomeBalance:Math.round(inc), total:Math.round(balance) });
+      prevIncome = inc;
+    }
+  }
+  const balAfterMgmt = balance;
+
+  // 一括引落
+  balance -= p.lumpSum; cumWd += p.lumpSum;
+
+  // Phase 3: 引落
+  for (let y = 1; y <= p.wdYears; y++) {
+    for (let m = 1; m <= 12; m++) balance = balance * (1 + mr3);
+    const wd = p.wdMethod==='fixed' ? p.wdAmount : balance*(p.wdAmount/100);
+    balance -= wd; cumWd += wd; yearNum++;
+    const pr = Math.max(0, cumInv - cumWd);
+    rows.push({ year:yearNum, refYear:TODAY_YEAR+yearNum-1,
+      annInv:0, cumInv:Math.round(cumInv),
+      annIncome:0, annWd:Math.round(wd), cumWd:Math.round(cumWd),
+      principal:Math.round(pr), incomeBalance:Math.round(Math.max(0,balance-pr)), total:Math.round(balance) });
+  }
+
+  return { totalInv:Math.round(cumInv), balAfterAccum:Math.round(balAfterAccum),
+    balAfterMgmt:Math.round(balAfterMgmt), income:Math.round(balAfterMgmt-cumInv),
+    totalWd:Math.round(cumWd), finalBal:Math.round(balance),
+    startYear:TODAY_YEAR, endYear:TODAY_YEAR+yearNum-1, yearNum, rows, params:p };
+}
+
+// ═══════════════════════════════════
+//  UI – Calculate
+// ═══════════════════════════════════
+function getParams() {
+  return {
+    accumYears:gv('accumYears'), accumMonths:gv('accumMonths'),
+    initialInv:gu('initialInv','initialUnit'), monthly:gu('monthly','monthlyUnit'),
+    accumRate:gv('accumRate'), mgmtYears:gv('mgmtYears'), mgmtMonths:gv('mgmtMonths'),
+    mgmtRate:gv('mgmtRate'), wdYears:gv('wdYears'), wdRate:gv('wdRate'),
+    lumpSum:gu('lumpSum','lumpSumUnit'), wdMethod:document.getElementById('wdMethod').value,
+    wdAmount:gu('wdAmount','wdUnit')
+  };
+}
+
+function calculate() {
+  try {
+    const r = computePlan(getParams());
+    lastResult = r;
+    document.getElementById('r1').textContent = fmt(r.totalInv)      + ' 円';
+    document.getElementById('r2').textContent = fmt(r.balAfterAccum) + ' 円';
+    document.getElementById('r3').textContent = fmt(r.balAfterMgmt)  + ' 円';
+    document.getElementById('r4').textContent = fmt(r.income)        + ' 円';
+    document.getElementById('r5').textContent = fmt(r.totalWd)       + ' 円';
+    document.getElementById('r6').textContent = fmt(r.finalBal)      + ' 円';
+    document.getElementById('r7').textContent = r.yearNum > 0
+      ? `${r.startYear}〜${r.endYear}` : `${TODAY_YEAR}〜`;
+    if (r.rows.length > 0) {
+      renderChart(r.rows); renderTable(r.rows);
+      document.getElementById('chartCard').classList.remove('section-hidden');
+      document.getElementById('tableCard').classList.remove('section-hidden');
+    }
+  } catch(e) { showToast('計算エラー: ' + e.message); }
+}
+
+function renderChart(rows) {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (mainChartInst) mainChartInst.destroy();
+  mainChartInst = new Chart(ctx, {
+    data: { labels: rows.map(d=>d.year), datasets:[
+      {type:'bar',  label:'原資残高',   data:rows.map(d=>d.principal),     backgroundColor:'#4fc3f7', stack:'a'},
+      {type:'bar',  label:'運用益残高', data:rows.map(d=>d.incomeBalance), backgroundColor:'#ffd54f', stack:'a'},
+      {type:'line', label:'累計投資額', data:rows.map(d=>d.cumInv),
+        borderColor:'#1e88e5', backgroundColor:'transparent',
+        pointBackgroundColor:'#1e88e5', borderWidth:2, tension:0.1, pointRadius:3}
+    ]},
+    options:{ responsive:true,
+      plugins:{ legend:{position:'top'}, tooltip:{callbacks:{label:c=>`${c.dataset.label}: ¥${fmt(c.raw)}`}}},
+      scales:{ y:{stacked:false, ticks:{callback:v=>(v/10000).toFixed(0)+'万円'}}}}
+  });
+}
+
+function renderTable(rows) {
+  document.getElementById('tableBody').innerHTML = rows.map(d=>`
+    <tr><td>${d.year}</td><td>${d.refYear}</td>
+    <td>¥${fmt(d.annInv)}</td><td>¥${fmt(d.cumInv)}</td>
+    <td>¥${fmt(d.annIncome)}</td><td>¥${fmt(d.annWd)}</td>
+    <td>¥${fmt(d.cumWd)}</td><td>¥${fmt(d.principal)}</td>
+    <td>¥${fmt(d.incomeBalance)}</td><td>¥${fmt(d.total)}</td></tr>`).join('');
+}
+
+function resetCalc() {
+  ['accumYears','accumMonths','initialInv','monthly','accumRate',
+   'mgmtYears','mgmtMonths','mgmtRate','wdYears','wdRate','lumpSum','wdAmount']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value='0'; });
+  document.getElementById('wdMethod').value='fixed';
+  ['r1','r2','r3','r4','r5','r6'].forEach(id=>document.getElementById(id).textContent='0 円');
+  document.getElementById('r7').textContent = TODAY_YEAR+'〜';
+  document.getElementById('chartCard').classList.add('section-hidden');
+  document.getElementById('tableCard').classList.add('section-hidden');
+  lastResult = null;
+}
+
+// ═══════════════════════════════════
+//  Plan management
+// ═══════════════════════════════════
+function addPlan() {
+  if (!lastResult) { showToast('先に「計算する」を押してください'); return; }
+  plans.push({ id:Date.now(), title:'プラン'+(plans.length+1), memo:'', result:lastResult });
+  savePlans();
+  showToast('プランを追加しました（プラン' + plans.length + '）');
+}
+
+function openPlans() {
+  try {
+    renderPlanList();
+    document.getElementById('planModal').classList.add('show');
+  } catch(e) { showToast('エラー: ' + e.message); }
+}
+
+function closePlans() { document.getElementById('planModal').classList.remove('show'); }
+
+function renderPlanList() {
+  const el = document.getElementById('planList');
+  if (!plans.length) {
+    el.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">保存されたプランがありません</p>';
+    return;
+  }
+  el.innerHTML = plans.map(p => {
+    const pa = p.result.params;
+    const al = pa.accumYears+'年'+(pa.accumMonths?pa.accumMonths+'ヶ月':'');
+    const ml = pa.mgmtYears+'年'+(pa.mgmtMonths?pa.mgmtMonths+'ヶ月':'');
+    return `
+    <div class="pcard" id="pcard-${p.id}">
+      <div class="pcard-header">
+        <input class="pcard-title-input" type="text" value="${p.title.replace(/"/g,'&quot;')}"
+          onchange="updateTitle(${p.id},this.value)">
+        <div class="pcard-actions">
+          <button class="icon-btn iprint"  onclick="printPlan(${p.id})"       title="印刷">🖨️</button>
+          <button class="icon-btn imemo"   onclick="toggleMemo(${p.id})"       title="メモ">📝</button>
+          <button class="icon-btn ireset"  onclick="resetPlanTitle(${p.id})"   title="プラン名リセット">🔄</button>
+          <button class="icon-btn idel"    onclick="deletePlan(${p.id})"       title="削除">🗑️</button>
+        </div>
+      </div>
+      <div id="memo-box-${p.id}" style="display:${p.memo?'':'none'}">
+        <textarea class="memo-area" onchange="updateMemo(${p.id},this.value)">${p.memo}</textarea>
+      </div>
+      <div class="pcard-info">
+        <span>初期投資額: ¥${fmt(pa.initialInv)}</span>
+        <span>毎月積立額: ¥${fmt(pa.monthly)}</span>
+        <span>一括引落額: ¥${fmt(pa.lumpSum)}</span>
+        <span>引落方法: ${pa.wdMethod==='fixed'?'定額':'定率'}</span>
+      </div>
+      <div class="badges">
+        <span class="badge">積立: ${pa.accumRate}% (${al})</span>
+        <span class="badge">運用: ${pa.mgmtRate}% (${ml})</span>
+        <span class="badge">引落: ${pa.wdRate}% (${pa.wdYears}年)</span>
+      </div>
+      <canvas id="pchart-${p.id}" height="80"></canvas>
+      <div class="pcard-summary">
+        <div><b>投資総額</b>¥${fmt(p.result.totalInv)}</div>
+        <div><b>最高資産額</b>¥${fmt(p.result.balAfterMgmt)}</div>
+        <div><b>受取総額</b>¥${fmt(p.result.totalWd)}</div>
+        <div><b>最終残高</b>¥${fmt(p.result.finalBal)}</div>
+      </div>
+      <button class="table-toggle-btn" id="tbtn-${p.id}" onclick="togglePlanTable(${p.id})">▲ 年次データを隠す</button>
+      <div class="plan-table-wrap" id="ptable-${p.id}">
+        <table>
+          <thead><tr>
+            <th>運用年</th><th>参考年</th><th>年間投資額</th><th>累計投資額</th>
+            <th>年間運用益</th><th>年間引落額</th><th>累計引落額</th>
+            <th>原資残高</th><th>運用益残高</th><th>資産残高</th>
+          </tr></thead>
+          <tbody>${p.result.rows.map(d=>`
+            <tr>
+              <td>${d.year}</td><td>${d.refYear}</td>
+              <td>¥${fmt(d.annInv)}</td><td>¥${fmt(d.cumInv)}</td>
+              <td>¥${fmt(d.annIncome)}</td><td>¥${fmt(d.annWd)}</td>
+              <td>¥${fmt(d.cumWd)}</td><td>¥${fmt(d.principal)}</td>
+              <td>¥${fmt(d.incomeBalance)}</td><td>¥${fmt(d.total)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+  setTimeout(() => plans.forEach(drawPlanChart), 100);
+}
+
+function drawPlanChart(p) {
+  const canvas = document.getElementById(`pchart-${p.id}`); if (!canvas) return;
+  const rows = p.result.rows;
+  new Chart(canvas.getContext('2d'), {
+    data:{ labels:rows.map(d=>d.year), datasets:[
+      {type:'bar', label:'原資残高',   data:rows.map(d=>d.principal),     backgroundColor:'#4fc3f7', stack:'a'},
+      {type:'bar', label:'運用益残高', data:rows.map(d=>d.incomeBalance), backgroundColor:'#ffd54f', stack:'a'},
+      {type:'line',label:'累計投資額', data:rows.map(d=>d.cumInv),
+        borderColor:'#1e88e5', backgroundColor:'transparent', borderWidth:2, tension:0.1, pointRadius:2}
+    ]},
+    options:{ responsive:true,
+      plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}},
+      scales:{y:{ticks:{callback:v=>(v/10000).toFixed(0)+'万'}}}}
+  });
+}
+
+function updateTitle(id,v){ const p=plans.find(x=>x.id===id); if(p){p.title=v;savePlans();} }
+function updateMemo(id,v) { const p=plans.find(x=>x.id===id); if(p){p.memo=v;savePlans();} }
+function toggleMemo(id) {
+  const el = document.getElementById(`memo-box-${id}`);
+  el.style.display = el.style.display==='none' ? '' : 'none';
+}
+function togglePlanTable(id) {
+  const tbl = document.getElementById(`ptable-${id}`);
+  const btn = document.getElementById(`tbtn-${id}`);
+  if (!tbl || !btn) return;
+  const showing = tbl.style.display !== 'none';
+  tbl.style.display = showing ? 'none' : '';
+  btn.textContent   = showing ? '▼ 年次データを表示' : '▲ 年次データを隠す';
+}
+function deletePlan(id) {
+  if (!confirm('このプランを削除しますか？')) return;
+  plans = plans.filter(p=>p.id!==id); savePlans(); renderPlanList();
+}
+function deleteAll() {
+  if (!confirm('全てのプランを削除しますか？')) return;
+  plans = []; savePlans(); renderPlanList();
+}
+function resetPlanTitle(id) {
+  const p = plans.find(x => x.id === id); if (!p) return;
+  p.title = 'プラン' + (plans.indexOf(p) + 1);
+  savePlans(); renderPlanList();
+}
+function resetAllPlanTitles() {
+  plans.forEach((p, i) => { p.title = 'プラン' + (i + 1); });
+  savePlans(); renderPlanList();
+}
+// ═══════════════════════════════════
+//  印刷（同タブ・年次テーブル付き）
+// ═══════════════════════════════════
+
+/** 日付文字列を生成（トグルチェックボックスIDを渡す） */
+function getDateStr(checkboxId) {
+  const chk = document.getElementById(checkboxId);
+  if (chk && !chk.checked) return '';
+  const n = new Date();
+  return `${n.getFullYear()}/${String(n.getMonth()+1).padStart(2,'0')}/${String(n.getDate()).padStart(2,'0')} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
+}
+
+/** プラン1件分の印刷HTML */
+function buildPrintPlanHTML(p, chartImgSrc, showTable, dateStr) {
+  const pa = p.result.params;
+  const r  = p.result;
+  const al = pa.accumYears+'年'+(pa.accumMonths?pa.accumMonths+'ヶ月':'');
+  const ml = pa.mgmtYears+'年'+(pa.mgmtMonths?pa.mgmtMonths+'ヶ月':'');
+  const memoHTML = p.memo
+    ? `<div class="print-memo">${p.memo.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : '';
+  const chartHTML = chartImgSrc
+    ? `<img class="print-chart" src="${chartImgSrc}" alt="資産推移チャート">` : '';
+
+  const tableRows = showTable ? r.rows.map(d => `
+    <tr>
+      <td>${d.year}</td><td>${d.refYear}</td>
+      <td>¥${fmt(d.annInv)}</td><td>¥${fmt(d.cumInv)}</td>
+      <td>¥${fmt(d.annIncome)}</td><td>¥${fmt(d.annWd)}</td>
+      <td>¥${fmt(d.cumWd)}</td><td>¥${fmt(d.principal)}</td>
+      <td>¥${fmt(d.incomeBalance)}</td><td>¥${fmt(d.total)}</td>
+    </tr>`).join('') : '';
+
+  return `
+    <div class="print-header">
+      <div class="print-header-app">資産運用シミュレーター</div>
+      ${dateStr ? `<div class="print-header-date">${dateStr}</div>` : ''}
+    </div>
+    <div class="print-title">${p.title}</div>
+    ${memoHTML}
+    <div class="print-params">
+      <span><b>初期投資額</b>¥${fmt(pa.initialInv)}</span>
+      <span><b>毎月の積立額</b>¥${fmt(pa.monthly)}</span>
+      <span><b>一括引落額</b>¥${fmt(pa.lumpSum)}</span>
+      <span><b>引落方法</b>${pa.wdMethod==='fixed'?'定額':'定率'}</span>
+      <span><b>引落額</b>¥${fmt(pa.wdAmount)}</span>
+    </div>
+    <div class="print-badges">
+      <span class="print-badge">積立: ${pa.accumRate}% (${al})</span>
+      <span class="print-badge">運用: ${pa.mgmtRate}% (${ml})</span>
+      <span class="print-badge">引落: ${pa.wdRate}% (${pa.wdYears}年)</span>
+    </div>
+    ${chartHTML}
+    <div class="print-summary">
+      <div><b>投資総額</b>¥${fmt(r.totalInv)}</div>
+      <div class="hilite"><b>最高資産額</b>¥${fmt(r.balAfterMgmt)}</div>
+      <div><b>受取総額</b>¥${fmt(r.totalWd)}</div>
+      <div class="hilite"><b>最終残高</b>¥${fmt(r.finalBal)}</div>
+    </div>
+    ${showTable ? `
+    <div class="print-section-title">年次データ</div>
+    <table class="print-table">
+      <thead><tr>
+        <th>運用年</th><th>参考年</th><th>年間投資額</th><th>累計投資額</th>
+        <th>年間運用益</th><th>年間引落額</th><th>累計引落額</th>
+        <th>原資残高</th><th>運用益残高</th><th>資産残高</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>` : ''}`;
+}
+
+/** 同タブ印刷の実行 */
+function execPrint(htmlContent) {
+  const area = document.getElementById('print-area');
+  area.innerHTML = htmlContent;
+  // チャートが描画されるのを少し待ってから印刷
+  setTimeout(() => {
+    window.print();
+    // 印刷ダイアログを閉じた後にクリア
+    setTimeout(() => { area.innerHTML = ''; }, 1000);
+  }, 300);
+}
+
+function printPlan(id) {
+  const p = plans.find(x => x.id === id);
+  if (!p) return;
+  const canvas    = document.getElementById(`pchart-${p.id}`);
+  const imgSrc    = canvas ? canvas.toDataURL('image/png') : null;
+  const tblEl     = document.getElementById(`ptable-${p.id}`);
+  const showTable = tblEl ? tblEl.style.display !== 'none' : false;
+  const dateStr   = getDateStr('plan-date-chk');
+  execPrint(`<div class="print-plan">${buildPrintPlanHTML(p, imgSrc, showTable, dateStr)}</div>`);
+}
+
+function printReverse() {
+  const isRate  = document.getElementById('sub-revRate').classList.contains('show');
+  const dateStr = getDateStr('rev-date-chk');
+  const header  = `
+    <div class="print-header">
+      <div class="print-header-app">資産運用シミュレーター（逆算）</div>
+      ${dateStr ? `<div class="print-header-date">${dateStr}</div>` : ''}
+    </div>`;
+
+  let body = '';
+  if (isRate) {
+    const target  = gu('rv1-target','rv1-tunit');
+    const accumY  = gv('rv1-years'), accumMo = gv('rv1-months');
+    const monthly = gu('rv1-monthly','rv1-munit');
+    const mgmtY   = gv('rv1-mgmt-y'), mgmtMo = gv('rv1-mgmt-m');
+    const total   = document.getElementById('rv1-total-disp')?.textContent || '-';
+    const result  = document.getElementById('rv1-result')?.textContent || '-';
+    body = `
+      <div class="print-title">📈 必要利回り シミュレーション</div>
+      <div class="print-params">
+        <span><b>目標金額</b>¥${fmt(target)}</span>
+        <span><b>積立期間</b>${accumY}年${accumMo?accumMo+'ヶ月':''}</span>
+        <span><b>毎月の積立額</b>¥${fmt(monthly)}</span>
+        <span><b>運用期間</b>${mgmtY}年${mgmtMo?mgmtMo+'ヶ月':''}</span>
+        <span><b>積立総額</b>${total}</span>
+      </div>
+      <div class="print-summary" style="grid-template-columns:1fr 1fr;">
+        <div><b>積立総額</b>${total}</div>
+        <div class="hilite"><b>必要利回り（年複利）</b>${result}</div>
+      </div>`;
+  } else {
+    const target  = gu('rv2-target','rv2-tunit');
+    const accumY  = gv('rv2-years'), accumMo = gv('rv2-months');
+    const rate    = gv('rv2-rate');
+    const mgmtY   = gv('rv2-mgmt-y'), mgmtMo = gv('rv2-mgmt-m');
+    const result  = document.getElementById('rv2-result')?.textContent || '-';
+    body = `
+      <div class="print-title">💰 必要積立額 シミュレーション</div>
+      <div class="print-params">
+        <span><b>目標金額</b>¥${fmt(target)}</span>
+        <span><b>積立期間</b>${accumY}年${accumMo?accumMo+'ヶ月':''}</span>
+        <span><b>年利</b>${rate}%</span>
+        <span><b>運用期間</b>${mgmtY}年${mgmtMo?mgmtMo+'ヶ月':''}</span>
+      </div>
+      <div class="print-summary" style="grid-template-columns:1fr;">
+        <div class="hilite"><b>必要積立額（月）</b>${result}</div>
+      </div>`;
+  }
+  execPrint(`<div class="print-plan">${header}${body}</div>`);
+}
+
+function printAll() {
+  if (!plans.length) { showToast('プランがありません'); return; }
+  const dateStr = getDateStr('plan-date-chk');
+  const html = plans.map(p => {
+    const canvas    = document.getElementById(`pchart-${p.id}`);
+    const imgSrc    = canvas ? canvas.toDataURL('image/png') : null;
+    const tblEl     = document.getElementById(`ptable-${p.id}`);
+    const showTable = tblEl ? tblEl.style.display !== 'none' : false;
+    return `<div class="print-plan">${buildPrintPlanHTML(p, imgSrc, showTable, dateStr)}</div>`;
+  }).join('');
+  execPrint(html);
+}
+
+// ═══════════════════════════════════
+//  逆算
+// ═══════════════════════════════════
+function fvFromMonthly(pmt, totalMonths, annualRate, mgmtMonths) {
+  const mr = Math.pow(1 + annualRate/100, 1/12) - 1;
+  let bal = 0;
+  for (let m=0; m<totalMonths; m++) bal = bal*(1+mr)+pmt;
+  for (let m=0; m<mgmtMonths;  m++) bal = bal*(1+mr);
+  return bal;
+}
+function calcRevRate() {
+  const target  = gu('rv1-target','rv1-tunit');
+  const accumM  = gv('rv1-years')*12 + gv('rv1-months');
+  const monthly = gu('rv1-monthly','rv1-munit');
+  const mgmtM   = gv('rv1-mgmt-y')*12 + gv('rv1-mgmt-m');
+  const d = document.getElementById('rv1-total-disp');
+  if (d) d.textContent = fmt(monthly * accumM) + ' 円';
+  const resEl = document.getElementById('rv1-result');
+  if (!target || !accumM) { resEl.textContent='－'; return; }
+  let lo=-50, hi=100;
+  for (let i=0;i<200;i++) {
+    const mid=(lo+hi)/2;
+    fvFromMonthly(monthly,accumM,mid,mgmtM)<target ? lo=mid : hi=mid;
+  }
+  const rate = (lo+hi)/2;
+  if (rate >= 99) { resEl.textContent='－'; return; }
+  const display = Math.abs(rate) < 0.005 ? 0 : rate; // -0.00 → 0.00 補正
+  resEl.textContent = display.toFixed(2) + ' %';
+}
+function calcRevAmt() {
+  const target = gu('rv2-target','rv2-tunit');
+  const accumM = gv('rv2-years')*12 + gv('rv2-months');
+  const rate   = gv('rv2-rate');
+  const mgmtM  = gv('rv2-mgmt-y')*12 + gv('rv2-mgmt-m');
+  const resEl  = document.getElementById('rv2-result');
+  if (!target || !accumM) { resEl.textContent='－'; return; }
+  const factor = fvFromMonthly(1, accumM, rate, mgmtM);
+  resEl.textContent = factor ? fmt(Math.ceil(target/factor)) + ' 円' : '－';
+}
+function resetReverse() {
+  ['rv1-target','rv1-years','rv1-months','rv1-monthly','rv1-mgmt-y','rv1-mgmt-m',
+   'rv2-target','rv2-years','rv2-months','rv2-rate','rv2-mgmt-y','rv2-mgmt-m']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value='0'; });
+  const d1=document.getElementById('rv1-total-disp'); if(d1) d1.textContent='0 円';
+  document.getElementById('rv1-result').textContent='－';
+  document.getElementById('rv2-result').textContent='－';
+}
+
+// ═══════════════════════════════════
+//  逆算プラン管理
+// ═══════════════════════════════════
+function addPlanFromReverse() {
+  const isRate = document.getElementById('sub-revRate').classList.contains('show');
+  let plan;
+  if (isRate) {
+    const result = document.getElementById('rv1-result').textContent;
+    if (!result || result === '－') { showToast('先に条件を入力してください'); return; }
+    plan = {
+      id: Date.now(), title: 'プラン' + (revPlans.length + 1), memo: '',
+      type: 'rate',
+      params: {
+        target:  gu('rv1-target','rv1-tunit'),
+        accumY:  gv('rv1-years'), accumMo: gv('rv1-months'),
+        monthly: gu('rv1-monthly','rv1-munit'),
+        mgmtY:   gv('rv1-mgmt-y'), mgmtMo: gv('rv1-mgmt-m'),
+        total:   document.getElementById('rv1-total-disp').textContent
+      },
+      result: result, resultLabel: '必要利回り（年複利）'
+    };
+  } else {
+    const result = document.getElementById('rv2-result').textContent;
+    if (!result || result === '－') { showToast('先に条件を入力してください'); return; }
+    plan = {
+      id: Date.now(), title: 'プラン' + (revPlans.length + 1), memo: '',
+      type: 'amount',
+      params: {
+        target:  gu('rv2-target','rv2-tunit'),
+        accumY:  gv('rv2-years'), accumMo: gv('rv2-months'),
+        rate:    gv('rv2-rate'),
+        mgmtY:   gv('rv2-mgmt-y'), mgmtMo: gv('rv2-mgmt-m')
+      },
+      result: result, resultLabel: '必要積立額（月）'
+    };
+  }
+  revPlans.push(plan);
+  saveRevPlans();
+  showToast('プランを追加しました（' + plan.title + '）');
+}
+
+function openRevPlans() {
+  renderRevPlanList();
+  document.getElementById('revPlanModal').classList.add('show');
+}
+function closeRevPlans() { document.getElementById('revPlanModal').classList.remove('show'); }
+
+function renderRevPlanList() {
+  const el = document.getElementById('revPlanList');
+  if (!revPlans.length) {
+    el.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">保存されたプランがありません</p>';
+    return;
+  }
+  el.innerHTML = revPlans.map(p => {
+    const pa = p.params;
+    const typeLabel = p.type === 'rate' ? '📈 必要利回り' : '💰 必要積立額';
+    const pi = (label, value) => `<div class="rpcard-param-item"><div class="rpcard-param-label">${label}</div><div class="rpcard-param-value">${value}</div></div>`;
+    const paramsHTML = p.type === 'rate'
+      ? pi('目標金額', `¥${fmt(pa.target)}`) +
+        pi('積立期間', `${pa.accumY}年${pa.accumMo ? pa.accumMo+'ヶ月' : ''}`) +
+        pi('毎月積立額', `¥${fmt(pa.monthly)}`) +
+        pi('運用期間', `${pa.mgmtY}年${pa.mgmtMo ? pa.mgmtMo+'ヶ月' : ''}`) +
+        pi('積立総額', pa.total)
+      : pi('目標金額', `¥${fmt(pa.target)}`) +
+        pi('積立期間', `${pa.accumY}年${pa.accumMo ? pa.accumMo+'ヶ月' : ''}`) +
+        pi('年利', `${pa.rate}%`) +
+        pi('運用期間', `${pa.mgmtY}年${pa.mgmtMo ? pa.mgmtMo+'ヶ月' : ''}`);
+    return `
+    <div class="rpcard" id="rpcard-${p.id}">
+      <div class="rpcard-header">
+        <input class="rpcard-title-input" type="text" value="${p.title.replace(/"/g,'&quot;')}"
+          onchange="updateRevTitle(${p.id},this.value)">
+        <span class="rpcard-type">${typeLabel}</span>
+        <div class="rpcard-actions">
+          <button class="icon-btn iprint"  onclick="printRevPlan(${p.id})"      title="印刷">🖨️</button>
+          <button class="icon-btn imemo"   onclick="toggleRevMemo(${p.id})"     title="コメント">📝</button>
+          <button class="icon-btn ireset"  onclick="resetRevPlanTitle(${p.id})" title="プラン名リセット">🔄</button>
+          <button class="icon-btn idel"    onclick="deleteRevPlan(${p.id})"     title="削除">🗑️</button>
+        </div>
+      </div>
+      <div class="rpcard-params">${paramsHTML}</div>
+      <div class="rpcard-result">
+        <b>${p.resultLabel}</b>
+        <div class="rpcard-result-val">${p.result}</div>
+      </div>
+      <div id="rev-memo-box-${p.id}" style="display:${p.memo ? '' : 'none'}">
+        <textarea class="memo-area" placeholder="コメントを入力"
+          onchange="updateRevMemo(${p.id},this.value)">${p.memo}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateRevTitle(id, v) { const p=revPlans.find(x=>x.id===id); if(p){p.title=v;saveRevPlans();} }
+function updateRevMemo(id, v)  { const p=revPlans.find(x=>x.id===id); if(p){p.memo=v;saveRevPlans();} }
+function toggleRevMemo(id) {
+  const el = document.getElementById(`rev-memo-box-${id}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+function deleteRevPlan(id) {
+  if (!confirm('このプランを削除しますか？')) return;
+  revPlans = revPlans.filter(p => p.id !== id);
+  saveRevPlans(); renderRevPlanList();
+}
+function deleteAllRevPlans() {
+  if (!confirm('逆算プランを全て削除しますか？')) return;
+  revPlans = []; saveRevPlans(); renderRevPlanList();
+}
+function resetRevPlanTitle(id) {
+  const p = revPlans.find(x => x.id === id); if (!p) return;
+  p.title = 'プラン' + (revPlans.indexOf(p) + 1);
+  saveRevPlans(); renderRevPlanList();
+}
+function resetAllRevPlanTitles() {
+  revPlans.forEach((p, i) => { p.title = 'プラン' + (i + 1); });
+  saveRevPlans(); renderRevPlanList();
+}
+
+function buildRevPrintCard(p) {
+  const pa = p.params;
+  const typeLabel = p.type === 'rate' ? '📈 必要利回り' : '💰 必要積立額';
+  const paramsHTML = p.type === 'rate'
+    ? `<span><b>目標金額</b>¥${fmt(pa.target)}</span>
+       <span><b>積立期間</b>${pa.accumY}年${pa.accumMo ? pa.accumMo+'ヶ月' : ''}</span>
+       <span><b>毎月積立</b>¥${fmt(pa.monthly)}</span>
+       <span><b>運用期間</b>${pa.mgmtY}年${pa.mgmtMo ? pa.mgmtMo+'ヶ月' : ''}</span>
+       <span><b>積立総額</b>${pa.total}</span>`
+    : `<span><b>目標金額</b>¥${fmt(pa.target)}</span>
+       <span><b>積立期間</b>${pa.accumY}年${pa.accumMo ? pa.accumMo+'ヶ月' : ''}</span>
+       <span><b>年利</b>${pa.rate}%</span>
+       <span><b>運用期間</b>${pa.mgmtY}年${pa.mgmtMo ? pa.mgmtMo+'ヶ月' : ''}</span>`;
+  const memoHTML = p.memo
+    ? `<div class="print-rev-memo">${p.memo.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : '';
+  return `
+    <div class="print-rev-card">
+      <div class="print-rev-title">${p.title.replace(/</g,'&lt;')}</div>
+      <div class="print-rev-type">${typeLabel}</div>
+      <div class="print-rev-params">${paramsHTML}</div>
+      <div class="print-rev-result">
+        <b>${p.resultLabel}</b>
+        <div class="print-rev-result-val">${p.result}</div>
+      </div>
+      ${memoHTML}
+    </div>`;
+}
+
+function printRevPlan(id) {
+  const p = revPlans.find(x => x.id === id);
+  if (!p) return;
+  const dateStr = getDateStr('rev-list-date-chk');
+  const hdr = `<div class="print-header">
+    <div class="print-header-app">資産運用シミュレーター（逆算）</div>
+    ${dateStr ? `<div class="print-header-date">${dateStr}</div>` : ''}
+  </div>`;
+  execPrint(`<div class="print-plan">${hdr}<div class="print-rev-grid">${buildRevPrintCard(p)}</div></div>`);
+}
+
+function printRevPlans() {
+  if (!revPlans.length) { showToast('プランがありません'); return; }
+  const dateStr = getDateStr('rev-list-date-chk');
+
+  // 常に4プラン/ページ固定
+  const chunks = [];
+  for (let i = 0; i < revPlans.length; i += 4) chunks.push(revPlans.slice(i, i + 4));
+
+  const html = chunks.map(group => {
+    const hdr = `<div class="print-header">
+      <div class="print-header-app">資産運用シミュレーター（逆算）</div>
+      ${dateStr ? `<div class="print-header-date">${dateStr}</div>` : ''}
+    </div>`;
+    const cards = group.map(buildRevPrintCard).join('');
+    return `<div class="print-plan">${hdr}<div class="print-rev-grid">${cards}</div></div>`;
+  }).join('');
+  execPrint(html);
+}
+</script>
+</body>
+</html>
