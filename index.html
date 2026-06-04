@@ -23,9 +23,10 @@
     g.lineTo(sz,sz-r);g.arcTo(sz,sz,sz-r,sz,r);
     g.lineTo(r,sz);g.arcTo(0,sz,0,sz-r,r);
     g.lineTo(0,r);g.arcTo(0,0,r,0,r);g.closePath();g.fill();
-    /* 4本の白い棒グラフ（オリジナルデザイン）[x, y, height] */
+    /* 4本の白い棒グラフ（稲妻ジグザグに合わせた高さ） [x, y, height] */
+    /* 稲妻: (5,52)→(22,14)→(38,42)→(54,6) に合わせて短・高・短・最高 */
     g.fillStyle='rgba(255,255,255,0.88)';
-    [[6,42,16],[19,33,25],[32,22,36],[45,10,48]].forEach(function(a){
+    [[6,52,6],[19,14,44],[32,42,16],[45,6,52]].forEach(function(a){
       var x=a[0]*s,y=a[1]*s,w=10*s,h=a[2]*s,rr=2*s;
       g.beginPath();
       g.moveTo(x+rr,y);g.lineTo(x+w-rr,y);g.arcTo(x+w,y,x+w,y+rr,rr);
@@ -73,7 +74,8 @@ body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:linear-gradient(
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start;}
 /* ── Mobile：2カラム維持・横スクロール防止 ── */
 @media(max-width:640px){
-  body{overflow-x:hidden;}
+  html,body{overflow-x:hidden;max-width:100%;}
+  *{box-sizing:border-box;}
   .container{padding:8px;}
   /* グリッド：min-width:0 で子要素が確実に縮む */
   .two-col{gap:6px;}
@@ -96,8 +98,8 @@ body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:linear-gradient(
   .rcard.orange .rcard-val{font-size:14px;}
   .result-stack{gap:5px;}
   /* 逆算：入力欄を2列グリッド・子要素も縮ませる */
-  .rev-card.card{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 8px;}
-  .rev-card.card>*{min-width:0;}
+  .rev-card.card{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 8px;width:100%;overflow:hidden;}
+  .rev-card.card>*{min-width:0;overflow:hidden;}
   .rev-card.card .card-title{grid-column:1/-1;margin-bottom:2px;}
   .rev-card.card .mfield{margin-bottom:0;padding:11px 7px 5px;}
   .rev-card.card .rev-result-row{grid-column:1/-1;margin-top:7px;gap:6px;}
