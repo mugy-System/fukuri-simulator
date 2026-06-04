@@ -23,21 +23,32 @@
     g.lineTo(sz,sz-r);g.arcTo(sz,sz,sz-r,sz,r);
     g.lineTo(r,sz);g.arcTo(0,sz,0,sz-r,r);
     g.lineTo(0,r);g.arcTo(0,0,r,0,r);g.closePath();g.fill();
-    /* 4本の上向き矢印 [centerX, shaftTop, tipY] */
+    /* 4本の白い棒グラフ（オリジナルデザイン）[x, y, height] */
     g.fillStyle='rgba(255,255,255,0.88)';
-    [[10,52,44],[22,42,34],[34,30,22],[46,16,8]].forEach(function(a){
-      var cx=a[0]*s,st=a[1]*s,tp=a[2]*s,bt=58*s;
-      g.fillRect(cx-2*s,st,4*s,bt-st);   /* 軸 */
-      g.beginPath();g.moveTo(cx,tp);      /* 矢尻（三角形） */
-      g.lineTo(cx-5*s,st);g.lineTo(cx+5*s,st);
+    [[6,42,16],[19,33,25],[32,22,36],[45,10,48]].forEach(function(a){
+      var x=a[0]*s,y=a[1]*s,w=10*s,h=a[2]*s,rr=2*s;
+      g.beginPath();
+      g.moveTo(x+rr,y);g.lineTo(x+w-rr,y);g.arcTo(x+w,y,x+w,y+rr,rr);
+      g.lineTo(x+w,y+h-rr);g.arcTo(x+w,y+h,x+w-rr,y+h,rr);
+      g.lineTo(x+rr,y+h);g.arcTo(x,y+h,x,y+h-rr,rr);
+      g.lineTo(x,y+rr);g.arcTo(x,y,x+rr,y,rr);
       g.closePath();g.fill();
     });
-    /* 複利成長曲線（三次ベジエ：最初ほぼ水平→急激に上昇） */
-    g.strokeStyle='#FFD54F';g.lineWidth=3*s;g.lineCap='round';
+    /* 赤い稲妻ライン（上→下→上のジグザグ） */
+    g.strokeStyle='#E53935';g.lineWidth=3*s;g.lineCap='round';g.lineJoin='round';
     g.beginPath();
-    g.moveTo(10*s,44*s);
-    g.bezierCurveTo(22*s,44*s, 36*s,9*s, 46*s,8*s);
+    g.moveTo(5*s,52*s);
+    g.lineTo(22*s,14*s);
+    g.lineTo(38*s,42*s);
+    g.lineTo(54*s,6*s);
     g.stroke();
+    /* 矢尻（稲妻右端に上向き右方向の矢印） */
+    g.fillStyle='#E53935';
+    g.beginPath();
+    g.moveTo(58*s,3*s);
+    g.lineTo(50*s,8*s);
+    g.lineTo(52*s,15*s);
+    g.closePath();g.fill();
     return c.toDataURL('image/png');
   }
   document.addEventListener('DOMContentLoaded',function(){
@@ -60,32 +71,40 @@ body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:linear-gradient(
 .page{display:none;}.page.show{display:block;}
 .container{max-width:1280px;margin:0 auto;padding:16px;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start;}
-/* ── Mobile：2カラム維持・コンパクト化 ── */
+/* ── Mobile：2カラム維持・横スクロール防止 ── */
 @media(max-width:640px){
-  .container{padding:10px;}
-  .two-col{gap:8px;}
-  .card{padding:12px 10px;}
-  .mfield{padding:13px 8px 6px;margin-bottom:7px;}
-  .mfield>label{font-size:10px;}
-  .mfield>input,.mfield .f-row input,.mfield .ym-row input{font-size:13px;}
-  .mfield .f-row select,.mfield .ym-row select{font-size:11px;}
-  .mfield .ym-row input{width:46px;}
-  .mfield .ym-row span{font-size:11px;}
-  .sec-title{font-size:13px;}
-  .input-section{margin-bottom:11px;padding-bottom:11px;}
-  .rcard-head{font-size:11px;padding:7px 6px;}
-  .rcard-val{font-size:14px;padding:8px 6px;}
-  .rcard.orange .rcard-val{font-size:15px;}
-  .result-stack{gap:6px;}
-  /* 逆算：入力欄を2列グリッドに */
-  .rev-card.card{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:12px 10px;}
+  body{overflow-x:hidden;}
+  .container{padding:8px;}
+  /* グリッド：min-width:0 で子要素が確実に縮む */
+  .two-col{gap:6px;}
+  .two-col>*{min-width:0;}
+  .card{padding:10px 8px;}
+  /* 入力フィールド */
+  .mfield{padding:13px 7px 5px;margin-bottom:6px;}
+  .mfield>label{font-size:10px;left:7px;}
+  .mfield>input,.mfield .f-row input{font-size:13px;}
+  .mfield .f-row select{font-size:11px;}
+  /* ym-row（年・ヶ月）：幅を削減して確実に収める */
+  .mfield .ym-row{gap:3px;}
+  .mfield .ym-row input{width:36px;font-size:12px;}
+  .mfield .ym-row span{font-size:10px;}
+  .sec-title{font-size:12px;margin-bottom:8px;}
+  .input-section{margin-bottom:10px;padding-bottom:10px;}
+  /* 結果カード */
+  .rcard-head{font-size:10px;padding:6px 4px;}
+  .rcard-val{font-size:13px;padding:7px 4px;}
+  .rcard.orange .rcard-val{font-size:14px;}
+  .result-stack{gap:5px;}
+  /* 逆算：入力欄を2列グリッド・子要素も縮ませる */
+  .rev-card.card{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 8px;}
+  .rev-card.card>*{min-width:0;}
   .rev-card.card .card-title{grid-column:1/-1;margin-bottom:2px;}
-  .rev-card.card .mfield{margin-bottom:0;padding:11px 8px 5px;}
-  .rev-card.card .rev-result-row{grid-column:1/-1;margin-top:8px;gap:8px;}
-  .rev-rcard-head{padding:8px 10px;font-size:12px;}
-  .rev-rcard-val{font-size:22px;padding:12px 8px;}
-  .rev-rcard-sub{font-size:10px;padding:2px 8px 8px;}
-  .sub-tab-btn{font-size:12px;padding:9px 8px;}
+  .rev-card.card .mfield{margin-bottom:0;padding:11px 7px 5px;}
+  .rev-card.card .rev-result-row{grid-column:1/-1;margin-top:7px;gap:6px;}
+  .rev-rcard-head{padding:7px 8px;font-size:12px;}
+  .rev-rcard-val{font-size:20px;padding:10px 6px;}
+  .rev-rcard-sub{font-size:10px;padding:2px 6px 7px;}
+  .sub-tab-btn{font-size:12px;padding:9px 6px;}
 }
 
 /* ── Card ── */
