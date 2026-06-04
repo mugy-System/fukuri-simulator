@@ -193,6 +193,7 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
 
 @media print{
   body{background:white!important;}
+  html,body{overflow:visible!important;max-width:none!important;}
   body>*:not(#print-area){display:none!important;}
   #print-area{display:block!important;font-family:'Hiragino Sans','Meiryo',sans-serif;color:#333;}
 
@@ -1138,13 +1139,23 @@ function buildPrintPlanHTML(p, chartImgSrc, showTable, dateStr) {
     </table>` : ''}`;
 }
 
+// ── 印刷コンテンツ制御（beforeprint/afterprint）──
+// iOS Safari は window.print() 直後にスナップショットを撮るため
+// innerHTML をその場でセットしても間に合わない。
+// beforeprint イベント内でセットすることでプレビューに確実に反映させる。
+let _printHTML = '';
+window.addEventListener('beforeprint', function () {
+  if (_printHTML) document.getElementById('print-area').innerHTML = _printHTML;
+});
+window.addEventListener('afterprint', function () {
+  document.getElementById('print-area').innerHTML = '';
+  _printHTML = '';
+});
+
 /** 同タブ印刷の実行 */
 function execPrint(htmlContent) {
-  const area = document.getElementById('print-area');
-  area.innerHTML = htmlContent;
-  // ユーザー操作の文脈を維持するため setTimeout を使わず直接呼ぶ（モバイルブラウザ対応）
+  _printHTML = htmlContent;
   window.print();
-  setTimeout(() => { area.innerHTML = ''; }, 1000);
 }
 
 function printPlan(id) {
