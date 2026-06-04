@@ -192,6 +192,7 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
 .date-toggle input{width:15px;height:15px;cursor:pointer;accent-color:#1976D2;}
 
 @media print{
+  body{background:white!important;}
   body>*:not(#print-area){display:none!important;}
   #print-area{display:block!important;font-family:'Hiragino Sans','Meiryo',sans-serif;color:#333;}
 
@@ -1141,12 +1142,9 @@ function buildPrintPlanHTML(p, chartImgSrc, showTable, dateStr) {
 function execPrint(htmlContent) {
   const area = document.getElementById('print-area');
   area.innerHTML = htmlContent;
-  // チャートが描画されるのを少し待ってから印刷
-  setTimeout(() => {
-    window.print();
-    // 印刷ダイアログを閉じた後にクリア
-    setTimeout(() => { area.innerHTML = ''; }, 1000);
-  }, 300);
+  // ユーザー操作の文脈を維持するため setTimeout を使わず直接呼ぶ（モバイルブラウザ対応）
+  window.print();
+  setTimeout(() => { area.innerHTML = ''; }, 1000);
 }
 
 function printPlan(id) {
