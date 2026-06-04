@@ -121,15 +121,11 @@ body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:linear-gradient(
   .rev-card.card .mfield .ym-row span{font-size:13px;}
   .rev-card.card .mfield .ym-row{gap:5px;}
 
-  /* 逆算の結果カード：2つ横並び維持 */
-  .rev-result-row{
-    margin-top:14px;
-    grid-template-columns:1fr 1fr !important;
-    gap:10px;
-  }
-  .rev-rcard-head{padding:10px 12px;font-size:13px;}
-  .rev-rcard-val{font-size:26px;padding:14px 10px;}
-  .rev-rcard-sub{font-size:11px;padding:3px 10px 10px;}
+  /* 逆算の結果カード（横長）*/
+  .rev-result-row{margin-top:10px;gap:7px;}
+  .rev-rcard-h .rev-rcard-head{flex:0 0 120px;font-size:12px;padding:8px 10px;}
+  .rev-rcard-h .rev-rcard-val{font-size:22px;padding:8px 12px;}
+  .rev-rcard-h .rev-rcard-sub{font-size:10px;padding:8px 6px 8px 0;}
 
   /* サブタブ */
   .sub-tab-bar{margin-bottom:14px;}
@@ -224,6 +220,11 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
 .rev-rcard-head{padding:12px 16px;font-size:14px;font-weight:bold;text-align:center;color:#fff;}
 .rev-rcard-val{padding:20px 16px;font-size:32px;font-weight:bold;text-align:center;background:#fff;color:#222;}
 .rev-rcard-sub{padding:4px 16px 14px;font-size:12px;text-align:center;background:#fff;color:#888;}
+/* 横長カード（逆算結果） */
+.rev-rcard-h{display:flex;align-items:stretch;}
+.rev-rcard-h .rev-rcard-head{flex:0 0 140px;display:flex;align-items:center;justify-content:center;padding:10px 12px;font-size:13px;}
+.rev-rcard-h .rev-rcard-val{flex:1;font-size:26px;padding:10px 16px;display:flex;align-items:center;justify-content:center;}
+.rev-rcard-h .rev-rcard-sub{flex:0 0 auto;background:#fff;padding:10px 10px 10px 0;font-size:11px;color:#888;display:flex;align-items:center;}
 
 /* ── Modal（前の画面が上部に見えるシート型） ── */
 .modal-overlay{
@@ -424,7 +425,7 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
           </div>
         </div>
         <div class="mfield">
-          <label>想定利回り（%）※マイナス可</label>
+          <label>想定利回り（%）</label>
           <input id="accumRate" value="0" inputmode="decimal"
             onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this)">
         </div>
@@ -444,7 +445,7 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
           </div>
         </div>
         <div class="mfield">
-          <label>想定利回り（%）※マイナス可</label>
+          <label>想定利回り（%）</label>
           <input id="mgmtRate" value="0" inputmode="decimal"
             onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this)">
         </div>
@@ -458,7 +459,7 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
             onfocus="onFocus(this)" onblur="onBlurInt(this)" oninput="filterInt(this)">
         </div>
         <div class="mfield">
-          <label>想定利回り（%）※マイナス可</label>
+          <label>想定利回り（%）</label>
           <input id="wdRate" value="0" inputmode="decimal"
             onfocus="onFocus(this)" onblur="onBlurRate(this)" oninput="filterRate(this)">
         </div>
@@ -473,13 +474,10 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
             </select>
           </div>
         </div>
+        <input type="hidden" id="wdMethod" value="fixed">
         <div class="mfield">
-          <label>引落方法 / 引落額（年）</label>
+          <label>引落額（年）</label>
           <div class="f-row">
-            <select id="wdMethod" style="font-size:14px;flex-shrink:0;">
-              <option value="fixed">定額</option>
-              <option value="rate">定率(%)</option>
-            </select>
             <input id="wdAmount" value="0" inputmode="decimal"
               data-fmt="money" onfocus="onFocus(this)" onblur="onBlurMoney(this)" oninput="filterMoney(this)">
             <select id="wdUnit">
@@ -583,13 +581,13 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
           <span>ヶ月</span>
         </div>
       </div>
-      <!-- 結果カード（横並び2枚） -->
-      <div class="rev-result-row">
-        <div class="rev-rcard">
+      <!-- 結果カード（縦並び横長） -->
+      <div class="rev-result-row" style="grid-template-columns:1fr;gap:8px;">
+        <div class="rev-rcard rev-rcard-h">
           <div class="rev-rcard-head" style="background:#4fc3f7;">積立総額</div>
           <div class="rev-rcard-val" id="rv1-total-disp">0 円</div>
         </div>
-        <div class="rev-rcard">
+        <div class="rev-rcard rev-rcard-h">
           <div class="rev-rcard-head" style="background:#ff8c00;">必要利回り</div>
           <div class="rev-rcard-val" id="rv1-result">－</div>
           <div class="rev-rcard-sub">年複利</div>
@@ -641,10 +639,9 @@ tbody td:first-child,tbody td:nth-child(2){text-align:center;}
       </div>
       <!-- 結果カード -->
       <div class="rev-result-row" style="grid-template-columns:1fr;">
-        <div class="rev-rcard">
+        <div class="rev-rcard rev-rcard-h">
           <div class="rev-rcard-head" style="background:#ff8c00;">必要積立額（月）</div>
           <div class="rev-rcard-val" id="rv2-result">－</div>
-          <div class="rev-rcard-sub">毎月この金額を積み立てると目標を達成できます</div>
         </div>
       </div>
     </div>
@@ -1000,7 +997,7 @@ function renderPlanList() {
         <span>初期投資額: ¥${fmt(pa.initialInv)}</span>
         <span>毎月積立額: ¥${fmt(pa.monthly)}</span>
         <span>一括引落額: ¥${fmt(pa.lumpSum)}</span>
-        <span>引落方法: ${pa.wdMethod==='fixed'?'定額':'定率'}</span>
+        <span>引落額: ¥${fmt(pa.wdAmount)}</span>
       </div>
       <div class="badges">
         <span class="badge">積立: ${pa.accumRate}% (${al})</span>
@@ -1128,8 +1125,7 @@ function buildPrintPlanHTML(p, chartImgSrc, showTable, dateStr) {
       <span><b>初期投資額</b>¥${fmt(pa.initialInv)}</span>
       <span><b>毎月の積立額</b>¥${fmt(pa.monthly)}</span>
       <span><b>一括引落額</b>¥${fmt(pa.lumpSum)}</span>
-      <span><b>引落方法</b>${pa.wdMethod==='fixed'?'定額':'定率'}</span>
-      <span><b>引落額</b>¥${fmt(pa.wdAmount)}</span>
+      <span><b>引落額（年）</b>¥${fmt(pa.wdAmount)}</span>
     </div>
     <div class="print-badges">
       <span class="print-badge">積立: ${pa.accumRate}% (${al})</span>
