@@ -1139,22 +1139,39 @@ function buildPrintPlanHTML(p, chartImgSrc, showTable, dateStr) {
     </table>` : ''}`;
 }
 
-// ── 印刷コンテンツ制御（beforeprint/afterprint）──
-// iOS Safari は window.print() 直後にスナップショットを撮るため
-// innerHTML をその場でセットしても間に合わない。
-// beforeprint イベント内でセットすることでプレビューに確実に反映させる。
+// ── 印刷コンテンツ制御 ──
+// iOS Safari は display:none の要素を印刷スナップショットに含めない。
+// execPrint で innerHTML をセットすると同時に display:block にし、
+// afterprint で元に戻す。beforeprint/matchMedia も念のため併用。
 let _printHTML = '';
+
 window.addEventListener('beforeprint', function () {
-  if (_printHTML) document.getElementById('print-area').innerHTML = _printHTML;
+  const a = document.getElementById('print-area');
+  if (_printHTML) { a.innerHTML = _printHTML; a.style.display = 'block'; }
 });
+
+if (window.matchMedia) {
+  window.matchMedia('print').addListener(function (mq) {
+    const a = document.getElementById('print-area');
+    if (mq.matches && _printHTML) { a.innerHTML = _printHTML; a.style.display = 'block'; }
+  });
+}
+
 window.addEventListener('afterprint', function () {
-  document.getElementById('print-area').innerHTML = '';
-  _printHTML = '';
+  setTimeout(function () {
+    const a = document.getElementById('print-area');
+    a.style.display = '';
+    a.innerHTML = '';
+    _printHTML = '';
+  }, 500);
 });
 
 /** 同タブ印刷の実行 */
 function execPrint(htmlContent) {
   _printHTML = htmlContent;
+  const area = document.getElementById('print-area');
+  area.innerHTML = htmlContent;
+  area.style.display = 'block'; // ← display:none のまま print すると iOS で空白になる
   window.print();
 }
 
